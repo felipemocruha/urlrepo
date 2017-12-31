@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/felipemocruha/urlrepo/urlrepo"
+	"os"
 )
 
 const (
@@ -15,13 +16,18 @@ const (
 )
 
 func addUrl(client pb.UrlClient, url *pb.UrlRequest) {
-	resp, err := client.AddUrl(context.Background(), url)
+	_, err := client.AddUrl(context.Background(), url)
 	if err != nil {
-		log.Fatalf("[*] Could not add URL: %+v", err)
+		log.Fatalf("[*] Could not add URL: %v", err)
 	}
-	if resp.Success {
-		log.Printf("[*] URL added with id: %d", resp.Id)
+}
+
+func getUrl(client pb.UrlClient, filter *pb.UrlFilter) {
+	resp, err := client.GetUrl(context.Background(), filter)
+	if err != nil {
+		log.Fatalf("[*] Could not get URL: %v", err)
 	}
+	log.Println(resp)
 }
 
 func getUrls(client pb.UrlClient) {
@@ -38,7 +44,14 @@ func getUrls(client pb.UrlClient) {
 		if err != nil {
 			log.Fatalf("[*] %v.GetUrls(_) = _, %v", client, err)
 		}
-		log.Printf("[*] url: %v", url)
+		log.Printf("[*] url: %+v", url)
+	}
+}
+
+func deleteUrl(client pb.UrlClient, filter *pb.UrlFilter) {
+	_, err := client.RemoveUrl(context.Background(), filter)
+	if err != nil {
+		log.Fatalf("[*] Could not remove URL: %v", err)
 	}
 }
 
@@ -50,10 +63,20 @@ func main() {
 	defer conn.Close()
 	client := pb.NewUrlClient(conn)
 
-	url := &pb.UrlRequest{
-		Url:   "https://google.com",
-		Title: "google"}
+	if os.Args[1] == "add" {
+		url := &pb.UrlRequest{Url: os.Args[2]}
+		addUrl(client, url)
 
-	addUrl(client, url)
-	getUrls(client)
+	} else if os.Args[1] == "get" {
+		filter := &pb.UrlFilter{Id: os.Args[2]}
+		getUrl(client, filter)
+
+	} else if os.Args[1] == "rm" {
+		filter := &pb.UrlFilter{Id: os.Args[2]}
+		deleteUrl(client, filter)
+
+	} else if os.Args[1] == "list" {
+		getUrls(client)
+	}
+
 }

@@ -11,7 +11,7 @@ import (
 )
 
 type UrlModel struct {
-	Id      string `storm:"index"`
+	Id      string `storm:"id"`
 	Url     string `storm:"unique"`
 	Title   string
 	AddedAt int
@@ -26,8 +26,7 @@ type server struct {
 }
 
 func (s *server) AddUrl(ctx context.Context, in *pb.UrlRequest) (*pb.UrlResponse, error) {
-	model := requestToModel(in)
-	err := s.modelHandler.createUrl(&model)
+	err := s.modelHandler.createUrl(in)
 	if err != nil {
 		return &pb.UrlResponse{Id: "", Success: false}, err
 	}
@@ -46,13 +45,17 @@ func (s *server) GetUrls(filter *pb.UrlFilter, stream pb.Url_GetUrlsServer) erro
 }
 
 func (s *server) GetUrl(ctx context.Context, in *pb.UrlFilter) (*pb.UrlRequest, error) {
-
-	return &pb.UrlRequest{}, nil
+	resp := s.modelHandler.selectUrl(in.Id)
+	req := modelToRequest(&resp)
+	return &req, nil
 }
 
 func (s *server) RemoveUrl(ctx context.Context, in *pb.UrlFilter) (*pb.UrlResponse, error) {
-
-	return &pb.UrlResponse{}, nil
+	err := s.modelHandler.removeUrl(in.Id)
+	if err != nil {
+		return &pb.UrlResponse{Id: "", Success: false}, nil
+	}
+	return &pb.UrlResponse{Id: in.Id, Success: true}, nil
 }
 
 func getDB() *storm.DB {
@@ -65,12 +68,13 @@ func getDB() *storm.DB {
 	return db
 }
 
-func (mh *ModelHandler) createUrl(url *UrlModel) error {
+func (mh *ModelHandler) createUrl(url *pb.UrlRequest) error {
 	id := strings.Replace(uuid.NewV4().String(), "-", "", -1)
 	url.Id = id
 	url.Title = fetchUrlTitle(url.Url)
-	url.AddedAt = int(time.Now().Unix())
-	err := mh.db.Save(&url)
+	url.AddedAt = int32(time.Now().Unix())
+	model := requestToModel(url)
+	err := mh.db.Save(&model)
 
 	return err
 }
@@ -99,7 +103,7 @@ func (mh *ModelHandler) removeUrl(id string) error {
 	url := UrlModel{}
 	err := mh.db.One("Id", id, &url)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	err = mh.db.DeleteStruct(&url)
