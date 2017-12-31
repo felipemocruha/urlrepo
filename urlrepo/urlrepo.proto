@@ -1,0 +1,26 @@
+syntax = "proto3";
+package urlrepo;
+
+
+service Url {
+  rpc GetUrls(UrlFilter) returns (stream UrlRequest) {}
+  rpc AddUrl (UrlRequest) returns (UrlResponse) {}
+  rpc RemoveUrl (UrlFilter) returns (UrlResponse) {}
+  rpc GetUrl(UrlFilter) returns (UrlRequest) {}
+}
+
+message UrlRequest {
+  string id = 1;
+  string url = 2;
+  string title = 3;
+  int32 added_at = 4;
+}
+
+message UrlResponse {
+  string id = 1;
+  bool success = 2;
+}
+
+message UrlFilter {
+  string id = 1;
+}
